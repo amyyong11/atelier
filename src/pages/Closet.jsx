@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Search, Upload } from 'lucide-react'
+import { Search, Upload, Pencil } from 'lucide-react'
 
 const STORAGE_KEY = 'atelier_wardrobe_items'
 
@@ -12,7 +12,6 @@ const categories = [
   { id: 'shoes', label: 'Shoes' },
   { id: 'bag', label: 'Bags' },
   { id: 'accessory', label: 'Acc.' },
-  { id: 'tights', label: 'Tights' },
 ]
 
 export default function Closet() {
@@ -23,6 +22,7 @@ export default function Closet() {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('top')
   const [imageData, setImageData] = useState(null)
+  const [editingId, setEditingId] = useState(null)
 
   useEffect(() => {
     try {
@@ -59,23 +59,56 @@ export default function Closet() {
     reader.readAsDataURL(file)
   }
 
-  const handleAddItem = (e) => {
-    e.preventDefault()
-    if (!name.trim()) return
-
-    const newItem = {
-      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-      name: name.trim(),
-      category,
-      imageData,
-      createdAt: new Date().toISOString(),
-    }
-
-    setItems((prev) => [newItem, ...prev])
+  const resetForm = () => {
     setName('')
     setCategory('top')
     setImageData(null)
+    setEditingId(null)
+  }
+
+  const openAddModal = () => {
+    resetForm()
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (item) => {
+    setEditingId(item.id)
+    setName(item.name)
+    setCategory(item.category)
+    setImageData(item.imageData || null)
+    setIsModalOpen(true)
+  }
+
+  const handleSubmitItem = (e) => {
+    e.preventDefault()
+    if (!name.trim()) return
+
+    if (editingId) {
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === editingId
+            ? { ...it, name: name.trim(), category, imageData }
+            : it
+        )
+      )
+    } else {
+      const newItem = {
+        id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+        name: name.trim(),
+        category,
+        imageData,
+        createdAt: new Date().toISOString(),
+      }
+      setItems((prev) => [newItem, ...prev])
+    }
+
+    resetForm()
     setIsModalOpen(false)
+  }
+
+  const getCategoryLabel = (id) => {
+    const found = categories.find((c) => c.id === id)
+    return found ? found.label.toUpperCase() : id.toUpperCase()
   }
 
   return (
@@ -87,7 +120,7 @@ export default function Closet() {
           <p className="text-stone-500">Manage your personal collection</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={openAddModal}
           className="inline-flex items-center gap-2 px-5 h-11 rounded-full bg-black text-white text-sm font-medium shadow-lg shadow-black/20 hover:bg-stone-900 transition-colors"
         >
           <Upload className="w-4 h-4" />
@@ -97,7 +130,7 @@ export default function Closet() {
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between sticky top-24 bg-[#FAFAF9]/95 backdrop-blur-sm py-2">
-        <div className="relative w-full md:w-72">
+        <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 w-4 h-4" />
           <input
             placeholder="Search items..."
@@ -135,8 +168,15 @@ export default function Closet() {
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-[2rem] p-3 border border-stone-100 shadow-sm"
+              className="bg-white rounded-[2rem] p-3 border border-stone-100 shadow-sm relative group"
             >
+              <button
+                type="button"
+                onClick={() => openEditModal(item)}
+                className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/90 border border-stone-200 text-stone-500 hover:bg-stone-50 hover:text-stone-800 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
               <div className="aspect-[3/4] rounded-[1.5rem] bg-stone-100 overflow-hidden mb-3 flex items-center justify-center">
                 {item.imageData ? (
                   <img
@@ -148,21 +188,25 @@ export default function Closet() {
                   <span className="text-xs text-stone-400">No image</span>
                 )}
               </div>
-              <p className="text-sm font-medium text-stone-900 truncate">{item.name}</p>
-              <p className="text-[11px] text-stone-400 capitalize">
-                {item.category.replace('_', ' ')}
-              </p>
+              <div className="space-y-1">
+                <span className="inline-flex px-3 py-1 rounded-full bg-stone-900 text-white text-[10px] tracking-[0.16em] uppercase">
+                  {getCategoryLabel(item.category)}
+                </span>
+                <p className="text-sm font-medium text-stone-900 truncate">{item.name}</p>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Simple modal */}
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl">
-            <h2 className="font-serif text-xl mb-4">Add Piece</h2>
-            <form className="space-y-4" onSubmit={handleAddItem}>
+            <h2 className="font-serif text-xl mb-4">
+              {editingId ? 'Edit Piece' : 'Add Piece'}
+            </h2>
+            <form className="space-y-4" onSubmit={handleSubmitItem}>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-stone-700">Name</label>
                 <input
@@ -213,9 +257,7 @@ export default function Closet() {
                   type="button"
                   onClick={() => {
                     setIsModalOpen(false)
-                    setName('')
-                    setCategory('top')
-                    setImageData(null)
+                    resetForm()
                   }}
                   className="px-4 h-9 rounded-lg text-sm text-stone-500 hover:bg-stone-100"
                 >
@@ -225,7 +267,7 @@ export default function Closet() {
                   type="submit"
                   className="px-4 h-9 rounded-lg text-sm bg-stone-900 text-white hover:bg-stone-800"
                 >
-                  Add
+                  {editingId ? 'Save changes' : 'Add'}
                 </button>
               </div>
             </form>

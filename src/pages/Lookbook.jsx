@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 
 const ITEMS_KEY = 'atelier_wardrobe_items'
 const OUTFITS_KEY = 'atelier_outfits'
@@ -23,11 +24,30 @@ export default function Lookbook() {
       .map((id) => items.find((it) => it.id === id))
       .filter(Boolean)
 
+  const handleDelete = (id) => {
+    const next = outfits.filter((o) => o.id !== id)
+    setOutfits(next)
+    try {
+      window.localStorage.setItem(OUTFITS_KEY, JSON.stringify(next))
+    } catch (e) {
+      console.warn('Failed to save outfits', e)
+    }
+  }
+
+  const formatDate = (iso) => {
+    try {
+      const d = new Date(iso)
+      return d.toISOString().slice(0, 10)
+    } catch {
+      return ''
+    }
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="font-serif text-4xl text-stone-900 mb-2">Lookbook</h1>
-        <p className="text-stone-500">Browse the outfits you&apos;ve saved</p>
+        <p className="text-stone-500">Curate and revisit your favorite outfits.</p>
       </div>
 
       {outfits.length === 0 ? (
@@ -35,55 +55,73 @@ export default function Lookbook() {
           No outfits yet. Use <span className="font-medium">Create Look</span> to design and save your first outfit.
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
           {outfits.map((outfit) => {
             const outfitItems = getItemsForOutfit(outfit)
+            const displayItems = outfitItems.slice(0, 3)
             return (
               <div
                 key={outfit.id}
-                className="bg-white rounded-3xl border border-stone-100 shadow-sm p-5 flex flex-col gap-3"
+                className="bg-white rounded-[2.5rem] border border-stone-100 shadow-sm flex flex-col overflow-hidden"
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-medium text-stone-900">{outfit.name}</p>
-                    <p className="text-xs text-stone-400 capitalize">
-                      {outfit.vibe} • {outfitItems.length} pieces
-                    </p>
-                  </div>
-                  <p className="text-[11px] text-stone-400">
-                    {new Date(outfit.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                {outfitItems.length > 0 && (
-                  <div className="flex gap-3 overflow-x-auto no-scrollbar">
-                    {outfitItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="min-w-[120px] bg-stone-50 rounded-2xl p-2 flex flex-col gap-2"
-                      >
-                        <div className="aspect-[3/4] rounded-2xl bg-stone-100 overflow-hidden flex items-center justify-center">
-                          {item.imageData ? (
-                            <img
-                              src={item.imageData}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-[11px] text-stone-400">
-                              No image
-                            </span>
-                          )}
+                {/* Top: item images */}
+                <div className="grid grid-cols-3 gap-3 p-5 pb-4">
+                  {displayItems.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className={`rounded-[1.5rem] bg-stone-100 overflow-hidden ${
+                        idx === 0 ? 'col-span-1' : ''
+                      }`}
+                    >
+                      {item.imageData ? (
+                        <img
+                          src={item.imageData}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[11px] text-stone-400">
+                          No image
                         </div>
-                        <p className="text-xs font-medium truncate">
-                          {item.name}
-                        </p>
-                        <p className="text-[11px] text-stone-400 capitalize">
-                          {item.category.replace('_', ' ')}
-                        </p>
-                      </div>
-                    ))}
+                      )}
+                    </div>
+                  ))}
+                  {displayItems.length === 0 && (
+                    <div className="col-span-3 h-32 rounded-3xl bg-stone-100 flex items-center justify-center text-xs text-stone-400">
+                      No items selected for this outfit
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom: details */}
+                <div className="border-t border-stone-100 px-6 py-4 space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-serif text-xl text-stone-900 lowercase first-letter:capitalize">
+                        {outfit.name}
+                      </p>
+                      <p className="text-xs text-stone-400">
+                        {formatDate(outfit.createdAt)}
+                      </p>
+                    </div>
+                    <span className="inline-flex px-3 py-1 rounded-full bg-stone-100 text-[11px] text-stone-700">
+                      {outfit.vibe ? outfit.vibe[0].toUpperCase() + outfit.vibe.slice(1) : 'Casual'}
+                    </span>
                   </div>
-                )}
+
+                  <div className="flex items-center justify-between text-[12px] text-stone-500">
+                    <span>
+                      {outfitItems.length} {outfitItems.length === 1 ? 'Item' : 'Items'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(outfit.id)}
+                      className="inline-flex items-center gap-1 text-stone-400 hover:text-red-500"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )
           })}
